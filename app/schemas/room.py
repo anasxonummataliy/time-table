@@ -1,10 +1,11 @@
+from builtins import str
 from typing import Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 RoomStatus = Literal["active", "maintenance", "closed"]
 
-# Normalizes any legacy Uzbek values still present in the database
+
 _STATUS_MAP = {
     "active": "active",
     "maintenance": "maintenance",
@@ -20,7 +21,7 @@ class RoomBase(BaseModel):
     capacity: Optional[int] = Field(None, ge=1, le=1000, examples=[60])
     room_type: Optional[str] = Field(None, max_length=50, examples=["Darsxona"])
     floor: Optional[int] = Field(None, ge=1, le=30, examples=[3])
-    status: RoomStatus = Field(default="active", examples=["active"])
+    status: RoomStatus = Field(default="active", examples=["active"])  # type: ignore
 
 
 class RoomCreate(RoomBase):
@@ -32,11 +33,11 @@ class RoomUpdate(BaseModel):
     capacity: Optional[int] = Field(None, ge=1, le=1000)
     room_type: Optional[str] = Field(None, max_length=50)
     floor: Optional[int] = Field(None, ge=1, le=30)
-    status: Optional[RoomStatus] = None
+    status: Optional[RoomStatus] = None  # type: ignore
 
 
 class RoomStatusUpdate(BaseModel):
-    status: RoomStatus = Field(..., examples=["maintenance"])
+    status: RoomStatus = Field(..., examples=["maintenance"])  # type: ignore
 
 
 class RoomResponse(RoomBase):

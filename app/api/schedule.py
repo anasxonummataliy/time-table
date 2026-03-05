@@ -1,3 +1,4 @@
+from builtins import str
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -18,21 +19,23 @@ from app.schemas.schedule import (
 router = APIRouter(prefix="/schedules", tags=["Schedules"])
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
 async def _get_or_404(db: AsyncSession, schedule_id: int) -> Schedule:
     result = await db.execute(select(Schedule).where(Schedule.id == schedule_id))
     schedule = result.scalar_one_or_none()
     if not schedule:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jadval topilmadi")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Jadval topilmadi"
+        )
     return schedule
 
 
-async def _check_fk_exist(db: AsyncSession, data: ScheduleCreate | ScheduleUpdate) -> None:
+async def _check_fk_exist(
+    db: AsyncSession, data: ScheduleCreate | ScheduleUpdate
+) -> None:
     checks = [
-        ("group_id",   Group,   "Guruh"),
+        ("group_id", Group, "Guruh"),
         ("teacher_id", Teacher, "O'qituvchi"),
-        ("room_id",    Room,    "Xona"),
+        ("room_id", Room, "Xona"),
     ]
     for attr, model, label in checks:
         fk_id = getattr(data, attr, None)
@@ -51,14 +54,14 @@ def _week_conflict_condition(week_type: Optional[str]):
     Toq/juft hafta → faqat bir-biri va NULL bilan conflict.
     """
     if week_type is None:
-        # NULL kelayotgan bo'lsa: NULL, odd, even hammasi bilan conflict
+
         return True  # faqat day + lesson tekshirish kifoya
     else:
         # odd/even kelayotgan bo'lsa: NULL yoki o'zi bilan conflict
         from sqlalchemy import or_
+
         return or_(
-            Schedule.week_type == None,   # noqa: E711
-            Schedule.week_type == week_type
+            Schedule.week_type == None, Schedule.week_type == week_type  # noqa: E711
         )
 
 
@@ -92,7 +95,7 @@ async def _check_conflicts(
     else:
         # yangi dars odd/even → NULL (har hafta) yoki o'zi bilan toqnashadi
         week_cond = or_(
-            Schedule.week_type == None,   # noqa: E711
+            Schedule.week_type == None,  # noqa: E711
             Schedule.week_type == week_type,
         )
 
@@ -106,12 +109,19 @@ async def _check_conflicts(
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"{label}: {existing.day_of_week}, {existing.lesson_number}-juft"
-                       f"{' ('+('toq' if existing.week_type=='odd' else 'juft')+' hafta)' if existing.week_type else ''}",
+                f"{' ('+('toq' if existing.week_type=='odd' else 'juft')+' hafta)' if existing.week_type else ''}",
             )
 
-    await _conflict(Schedule.room_id    == room_id,    "Bu xonada ushbu vaqtda allaqachon dars bor")
-    await _conflict(Schedule.teacher_id == teacher_id, "Bu o'qituvchi ushbu vaqtda boshqa darsda band")
-    await _conflict(Schedule.group_id   == group_id,   "Bu guruhda ushbu vaqtda allaqachon dars bor")
+    await _conflict(
+        Schedule.room_id == room_id, "Bu xonada ushbu vaqtda allaqachon dars bor"
+    )
+    await _conflict(
+        Schedule.teacher_id == teacher_id,
+        "Bu o'qituvchi ushbu vaqtda boshqa darsda band",
+    )
+    await _conflict(
+        Schedule.group_id == group_id, "Bu guruhda ushbu vaqtda allaqachon dars bor"
+    )
 
 
 def _with_relations(stmt):
@@ -124,26 +134,33 @@ def _with_relations(stmt):
 
 # ── GET /schedules/ ───────────────────────────────────────────────────────────
 
+
 @router.get("/", response_model=List[ScheduleDetailResponse])
 async def get_schedules(
-    group_id:    Optional[int] = Query(None),
-    teacher_id:  Optional[int] = Query(None),
-    room_id:     Optional[int] = Query(None),
+    group_id: Optional[int] = Query(None),
+    teacher_id: Optional[int] = Query(None),
+    room_id: Optional[int] = Query(None),
     day_of_week: Optional[str] = Query(None),
-    week_type:   Optional[str] = Query(None),
+    week_type: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_session),
 ):
     stmt = _with_relations(select(Schedule))
-    if group_id:    stmt = stmt.where(Schedule.group_id    == group_id)
-    if teacher_id:  stmt = stmt.where(Schedule.teacher_id  == teacher_id)
-    if room_id:     stmt = stmt.where(Schedule.room_id     == room_id)
-    if day_of_week: stmt = stmt.where(Schedule.day_of_week == day_of_week)
-    if week_type:   stmt = stmt.where(Schedule.week_type   == week_type)
+    if group_id:
+        stmt = stmt.where(Schedule.group_id == group_id)
+    if teacher_id:
+        stmt = stmt.where(Schedule.teacher_id == teacher_id)
+    if room_id:
+        stmt = stmt.where(Schedule.room_id == room_id)
+    if day_of_week:
+        stmt = stmt.where(Schedule.day_of_week == day_of_week)
+    if week_type:
+        stmt = stmt.where(Schedule.week_type == week_type)
     result = await db.execute(stmt)
     return result.scalars().all()
 
 
 # ── GET /schedules/{id} ───────────────────────────────────────────────────────
+
 
 @router.get("/{schedule_id}", response_model=ScheduleDetailResponse)
 async def get_schedule(schedule_id: int, db: AsyncSession = Depends(get_session)):
@@ -151,23 +168,28 @@ async def get_schedule(schedule_id: int, db: AsyncSession = Depends(get_session)
     result = await db.execute(stmt)
     s = result.scalar_one_or_none()
     if not s:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jadval topilmadi")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Jadval topilmadi"
+        )
     return s
 
 
 # ── POST /schedules/ ──────────────────────────────────────────────────────────
 
+
 @router.post("/", response_model=ScheduleResponse, status_code=status.HTTP_201_CREATED)
-async def create_schedule(data: ScheduleCreate, db: AsyncSession = Depends(get_session)):
+async def create_schedule(
+    data: ScheduleCreate, db: AsyncSession = Depends(get_session)
+):
     await _check_fk_exist(db, data)
     await _check_conflicts(
         db,
-        day_of_week   = data.day_of_week,
-        lesson_number = data.lesson_number,
-        week_type     = data.week_type,
-        room_id       = data.room_id,
-        teacher_id    = data.teacher_id,
-        group_id      = data.group_id,
+        day_of_week=data.day_of_week,
+        lesson_number=data.lesson_number,
+        week_type=data.week_type,
+        room_id=data.room_id,
+        teacher_id=data.teacher_id,
+        group_id=data.group_id,
     )
     schedule = Schedule(**data.model_dump())
     db.add(schedule)
@@ -175,12 +197,15 @@ async def create_schedule(data: ScheduleCreate, db: AsyncSession = Depends(get_s
         await db.commit()
     except IntegrityError as e:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Jadval konflikti yuz berdi")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Jadval konflikti yuz berdi"
+        )
     await db.refresh(schedule)
     return schedule
 
 
 # ── PATCH /schedules/{id} ─────────────────────────────────────────────────────
+
 
 @router.patch("/{schedule_id}", response_model=ScheduleResponse)
 async def update_schedule(
@@ -191,12 +216,16 @@ async def update_schedule(
 
     # Mavjud qiymatlar + yangi qiymatlarni birlashtir
     merged = {
-        "day_of_week":   data.day_of_week   or schedule.day_of_week,
+        "day_of_week": data.day_of_week or schedule.day_of_week,
         "lesson_number": data.lesson_number or schedule.lesson_number,
-        "week_type":     data.week_type     if "week_type" in data.model_fields_set else schedule.week_type,
-        "room_id":       data.room_id       or schedule.room_id,
-        "teacher_id":    data.teacher_id    or schedule.teacher_id,
-        "group_id":      data.group_id      or schedule.group_id,
+        "week_type": (
+            data.week_type
+            if "week_type" in data.model_fields_set
+            else schedule.week_type
+        ),
+        "room_id": data.room_id or schedule.room_id,
+        "teacher_id": data.teacher_id or schedule.teacher_id,
+        "group_id": data.group_id or schedule.group_id,
     }
 
     await _check_conflicts(db, exclude_id=schedule_id, **merged)
@@ -207,12 +236,15 @@ async def update_schedule(
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Jadval konflikti yuz berdi")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Jadval konflikti yuz berdi"
+        )
     await db.refresh(schedule)
     return schedule
 
 
 # ── DELETE /schedules/{id} ────────────────────────────────────────────────────
+
 
 @router.delete("/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_schedule(schedule_id: int, db: AsyncSession = Depends(get_session)):

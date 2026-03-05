@@ -32,15 +32,15 @@ class ScheduleBase(BaseModel):
     teacher_id: int = Field(..., gt=0)
     room_id: int = Field(..., gt=0)
 
-    day_of_week: DAY_CHOICES
+    day_of_week: DAY_CHOICES # type: ignore
     lesson_number: int = Field(..., ge=1, le=6, examples=[1])
-    week_type: Optional[WEEK_TYPE] = Field(
+    week_type: Optional[WEEK_TYPE] = Field( # type: ignore
         None,
         description="'odd' = toq hafta | 'even' = juft hafta | null = har hafta",
     )
 
     subject: str = Field(..., min_length=1, max_length=100, examples=["Fizika"])
-    lesson_type: Optional[LESSON_TYPE] = Field(None, examples=["Ma'ruza"])
+    lesson_type: Optional[LESSON_TYPE] = Field(None, examples=["Ma'ruza"]) # type: ignore
 
 
 class ScheduleCreate(ScheduleBase):
@@ -52,12 +52,12 @@ class ScheduleUpdate(BaseModel):
     teacher_id: Optional[int] = Field(None, gt=0)
     room_id: Optional[int] = Field(None, gt=0)
 
-    day_of_week: Optional[DAY_CHOICES] = None
+    day_of_week: Optional[DAY_CHOICES] = None # type: ignore
     lesson_number: Optional[int] = Field(None, ge=1, le=6)
-    week_type: Optional[WEEK_TYPE] = None
+    week_type: Optional[WEEK_TYPE] = None # type: ignore
 
     subject: Optional[str] = Field(None, min_length=1, max_length=100)
-    lesson_type: Optional[LESSON_TYPE] = None
+    lesson_type: Optional[LESSON_TYPE] = None # type: ignore
 
 
 class ScheduleResponse(ScheduleBase):
