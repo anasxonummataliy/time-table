@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time Table — Dars Jadvali</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #1a1a24;
+    --border: #2a2a3a;
+    --accent: #f0b429;
+    --text: #e8e8f0;
+    --text2: #8888aa;
+    --text3: #555570;
+    --red: #ff4d6d;
+    --green: #3ecf8e;
+    --blue: #4d9fff;
+    --purple: #9b6dff;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--font-mono); min-height:100vh; overflow-x:hidden; }
+
+  .app { display:flex; height:100vh; }
+
+  /* SIDEBAR */
+  .sidebar { width:240px; min-width:240px; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; }
+  .logo { padding:28px 24px 20px; border-bottom:1px solid var(--border); }
+  .logo-title { font-family:var(--font-head); font-size:20px; font-weight:800; color:var(--accent); letter-spacing:-0.5px; }
+  .logo-sub { font-size:9px; color:var(--text3); letter-spacing:2px; text-transform:uppercase; margin-top:3px; }
+  nav { flex:1; padding:12px 0; }
+  .nav-section { padding:10px 24px 4px; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text3); }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:10px 24px; cursor:pointer; color:var(--text2); font-size:13px; border-left:2px solid transparent; transition:all 0.15s; }
+  .nav-item:hover { color:var(--text); background:rgba(255,255,255,0.02); }
+  .nav-item.active { color:var(--accent); border-left-color:var(--accent); background:rgba(240,180,41,0.05); }
+  .nav-icon { font-size:14px; width:18px; text-align:center; }
+  .nav-badge { margin-left:auto; background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:1px 7px; font-size:10px; color:var(--text3); }
+  .sidebar-footer { padding:14px 24px; border-top:1px solid var(--border); font-size:10px; color:var(--text3); }
+  .api-status { display:flex; align-items:center; gap:6px; }
+  .status-dot { width:6px; height:6px; border-radius:50%; background:var(--text3); transition:background 0.3s; }
+  .status-dot.online { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .status-dot.offline { background:var(--red); }
+
+  /* MAIN */
+  .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .topbar { background:var(--bg2); border-bottom:1px solid var(--border); padding:14px 28px; display:flex; align-items:center; gap:12px; }
+  .page-title { font-family:var(--font-head); font-size:17px; font-weight:700; flex:1; }
+  .filter-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+  select, input {
+    background:var(--bg3); border:1px solid var(--border); color:var(--text);
+    font-family:var(--font-mono); font-size:12px; padding:7px 10px; border-radius:6px;
+    outline:none; cursor:pointer; transition:border-color 0.15s;
+  }
+  select:focus, input:focus { border-color:var(--accent); }
+
+  .btn { padding:8px 14px; border-radius:6px; font-family:var(--font-mono); font-size:12px; font-weight:500; cursor:pointer; border:none; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; }
+  .btn-primary { background:var(--accent); color:#000; }
+  .btn-primary:hover { background:#ffc940; }
+  .btn-ghost { background:transparent; color:var(--text2); border:1px solid var(--border); }
+  .btn-ghost:hover { color:var(--text); border-color:var(--text3); }
+  .btn-danger { background:transparent; color:var(--red); border:1px solid rgba(255,77,109,0.3); }
+  .btn-danger:hover { background:rgba(255,77,109,0.1); }
+  .btn-sm { padding:5px 9px; font-size:11px; }
+
+  /* CONTENT */
+  .content { flex:1; overflow-y:auto; padding:22px 28px; }
+  .content::-webkit-scrollbar { width:4px; }
+  .content::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  .page { display:none; animation:fadeIn 0.2s ease; }
+  .page.active { display:block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+
+  /* TIMETABLE */
+  .timetable-wrap { overflow-x:auto; }
+  .timetable { min-width:860px; border-collapse:collapse; width:100%; }
+  .timetable th {
+    font-family:var(--font-head); font-size:11px; font-weight:700; letter-spacing:1px;
+    text-transform:uppercase; color:var(--text3); padding:11px 6px; text-align:center;
+    border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:1;
+  }
+  .timetable td { border:1px solid var(--border); padding:3px; vertical-align:top; min-height:85px; height:95px; }
+  .time-cell { background:var(--bg2); text-align:center; padding:0 6px !important; width:82px; min-width:82px; }
+  .time-num { font-family:var(--font-head); font-size:24px; font-weight:800; color:var(--text3); line-height:1; margin-top:18px; }
+  .time-range { font-size:8px; color:var(--text3); margin-top:3px; white-space:nowrap; }
+
+  .lesson-card {
+    border-radius:5px; padding:6px 7px; margin:2px; cursor:pointer;
+    transition:all 0.15s; border-left:3px solid; min-height:79px;
+    display:flex; flex-direction:column; justify-content:space-between; position:relative;
+  }
+  .lesson-card:hover { transform:translateY(-1px); filter:brightness(1.2); }
+  .lesson-card.type-maruz  { background:rgba(77,159,255,0.1);  border-color:var(--blue); }
+  .lesson-card.type-amal   { background:rgba(62,207,142,0.1);  border-color:var(--green); }
+  .lesson-card.type-lab    { background:rgba(155,109,255,0.1); border-color:var(--purple); }
+  .lesson-card.type-sem    { background:rgba(240,180,41,0.1);  border-color:var(--accent); }
+  .lesson-card.type-other  { background:rgba(136,136,170,0.1); border-color:var(--text3); }
+  .lesson-card.room-warn   { border-color:var(--accent) !important; }
+  .room-warn-badge { position:absolute; bottom:4px; right:4px; background:rgba(240,180,41,0.15); border:1px solid rgba(240,180,41,0.4); border-radius:3px; padding:1px 5px; font-size:8px; color:var(--accent); letter-spacing:0.5px; }
+  .lesson-subject { font-family:var(--font-head); font-size:11px; font-weight:700; line-height:1.2; }
+  .lesson-meta { font-size:9px; color:var(--text2); margin-top:3px; line-height:1.6; }
+  .lesson-type-badge { font-size:8px; letter-spacing:1px; text-transform:uppercase; opacity:0.6; }
+  .lesson-week { position:absolute; top:4px; right:4px; font-size:8px; background:var(--bg); border-radius:3px; padding:1px 4px; color:var(--text3); }
+
+  .add-slot {
+    width:calc(100% - 6px); height:calc(100% - 6px); margin:3px;
+    border:1px dashed var(--border); border-radius:5px; background:transparent;
+    color:var(--text3); font-size:18px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:all 0.15s;
+  }
+  .add-slot:hover { border-color:var(--accent); color:var(--accent); background:rgba(240,180,41,0.03); }
+
+  /* CARDS */
+  .cards-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .cards-title { font-family:var(--font-head); font-size:15px; font-weight:700; }
+  .cards-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:12px; }
+
+  .card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:18px; transition:all 0.15s; position:relative; }
+  .card:hover { border-color:var(--text3); transform:translateY(-2px); }
+  .card-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px; }
+  .card-icon { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .card-actions { display:flex; gap:4px; opacity:0; transition:opacity 0.15s; }
+  .card:hover .card-actions { opacity:1; }
+  .card-title { font-family:var(--font-head); font-size:14px; font-weight:700; margin-bottom:3px; }
+  .card-sub { font-size:11px; color:var(--text2); line-height:1.6; }
+  .card-tag { display:inline-block; background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:2px 7px; font-size:10px; color:var(--text3); margin-top:7px; margin-right:4px; }
+
+  /* MODAL */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:100; opacity:0; pointer-events:none; transition:opacity 0.2s; }
+  .modal-overlay.open { opacity:1; pointer-events:all; }
+  .modal { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:26px; width:460px; max-width:92vw; max-height:88vh; overflow-y:auto; transform:translateY(10px); transition:transform 0.2s; }
+  .modal-overlay.open .modal { transform:translateY(0); }
+  .modal-title { font-family:var(--font-head); font-size:17px; font-weight:700; margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+
+  .form-group { margin-bottom:13px; }
+  .form-label { display:block; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text3); margin-bottom:5px; }
+  .form-control { width:100%; background:var(--bg3); border:1px solid var(--border); color:var(--text); font-family:var(--font-mono); font-size:12px; padding:8px 11px; border-radius:7px; outline:none; transition:border-color 0.15s; }
+  .form-control:focus { border-color:var(--accent); }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
+
+  .delete-confirm { background:rgba(255,77,109,0.07); border:1px solid rgba(255,77,109,0.2); border-radius:8px; padding:12px 14px; font-size:12px; color:var(--text2); margin-bottom:4px; }
+
+  /* TOAST */
+  .toasts { position:fixed; bottom:22px; right:22px; z-index:200; display:flex; flex-direction:column; gap:7px; }
+  .toast { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:11px 15px; font-size:12px; display:flex; align-items:center; gap:8px; min-width:250px; animation:slideIn 0.2s ease; border-left:3px solid var(--text3); }
+  .toast.success { border-left-color:var(--green); }
+  .toast.error   { border-left-color:var(--red); }
+  .toast.info    { border-left-color:var(--blue); }
+  @keyframes slideIn { from { transform:translateX(16px); opacity:0; } to { transform:none; opacity:1; } }
+
+  .empty { text-align:center; padding:55px 20px; color:var(--text3); grid-column:1/-1; }
+  .empty-icon { font-size:40px; margin-bottom:10px; opacity:0.25; }
+  .empty-text { font-family:var(--font-head); font-size:13px; color:var(--text2); margin-bottom:4px; }
+  .empty-sub { font-size:11px; }
+
+  .loader { display:inline-block; width:14px; height:14px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.6s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+  .stat-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:15px 18px; }
+  .stat-label { font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text3); margin-bottom:5px; }
+  .stat-value { font-family:var(--font-head); font-size:26px; font-weight:800; line-height:1; }
+  .yellow { color:var(--accent); } .green { color:var(--green); } .blue { color:var(--blue); } .purple { color:var(--purple); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-title">TIME·TABLE</div>
+      <div class="logo-sub">Dars Jadvali Tizimi</div>
+    </div>
+    <nav>
+      <div class="nav-section">Ko'rinish</div>
+      <div class="nav-item active" data-page="schedule" onclick="showPage('schedule',this)">
+        <span class="nav-icon">▦</span> Jadval
+      </div>
+      <div class="nav-section" style="margin-top:10px">Boshqaruv</div>
+      <div class="nav-item" data-page="groups" onclick="showPage('groups',this)">
+        <span class="nav-icon">◉</span> Guruhlar
+        <span class="nav-badge" id="badge-groups">—</span>
+      </div>
+      <div class="nav-item" data-page="teachers" onclick="showPage('teachers',this)">
+        <span class="nav-icon">◈</span> O'qituvchilar
+        <span class="nav-badge" id="badge-teachers">—</span>
+      </div>
+      <div class="nav-item" data-page="rooms" onclick="showPage('rooms',this)">
+        <span class="nav-icon">◻</span> Xonalar
+        <span class="nav-badge" id="badge-rooms">—</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="api-status">
+        <div class="status-dot" id="api-dot"></div>
+        <span id="api-status-text">Ulanmoqda...</span>
+      </div>
+      <div style="margin-top:3px;font-size:9px">localhost:8000/api/v1</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="page-title" id="page-title">Dars Jadvali</div>
+
+      <div class="filter-row" id="schedule-filters">
+        <select id="filter-group" onchange="loadSchedule()">
+          <option value="">Barcha guruhlar</option>
+        </select>
+        <select id="filter-teacher" onchange="loadSchedule()">
+          <option value="">Barcha o'qituvchilar</option>
+        </select>
+        <select id="filter-week" onchange="loadSchedule()">
+          <option value="">Har hafta</option>
+          <option value="odd">Toq hafta</option>
+          <option value="even">Juft hafta</option>
+        </select>
+        <button class="btn btn-primary" onclick="openScheduleModalWithGroup()">+ Dars qo'shish</button>
+      </div>
+
+      <div class="filter-row" id="page-actions" style="display:none">
+        <button class="btn btn-primary" id="add-btn" onclick="openAddModal()">+ Qo'shish</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- JADVAL -->
+      <div class="page active" id="page-schedule">
+        <div class="timetable-wrap">
+          <table class="timetable">
+            <thead>
+              <tr>
+                <th style="width:82px">Vaqt</th>
+                <th>Dushanba</th><th>Seshanba</th><th>Chorshanba</th>
+                <th>Payshanba</th><th>Juma</th><th>Shanba</th>
+              </tr>
+            </thead>
+            <tbody id="timetable-body">
+              <tr><td colspan="7" style="text-align:center;padding:50px">
+                <div class="loader"></div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- GURUHLAR -->
+      <div class="page" id="page-groups">
+        <div class="stats-row" id="group-stats"></div>
+        <div class="cards-grid" id="groups-grid"></div>
+      </div>
+
+      <!-- O'QITUVCHILAR -->
+      <div class="page" id="page-teachers">
+        <div class="cards-grid" id="teachers-grid"></div>
+      </div>
+
+      <!-- XONALAR -->
+      <div class="page" id="page-rooms">
+        <div class="cards-grid" id="rooms-grid"></div>
+        <div id="room-schedule-section" style="display:none;margin-top:28px">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+            <div style="font-family:var(--font-head);font-size:15px;font-weight:700" id="room-detail-title"></div>
+            <select id="room-week-filter" onchange="renderRoomSchedule()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:12px;padding:6px 10px;border-radius:6px;outline:none">
+              <option value="">Har hafta</option>
+              <option value="odd">Toq hafta</option>
+              <option value="even">Juft hafta</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="closeRoomDetail()">✕ Yopish</button>
+          </div>
+          <div class="timetable-wrap">
+            <table class="timetable">
+              <thead>
+                <tr>
+                  <th style="width:82px">Vaqt</th>
+                  <th>Dushanba</th><th>Seshanba</th><th>Chorshanba</th>
+                  <th>Payshanba</th><th>Juma</th><th>Shanba</th>
+                </tr>
+              </thead>
+              <tbody id="room-timetable-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-title" id="modal-title"></div>
+    <div id="modal-body"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div class="toasts" id="toasts"></div>
+
+<script>
+const API = 'http://127.0.0.1:8000/api';
+const DAYS = ['Dushanba','Seshanba','Chorshanba','Payshanba','Juma','Shanba'];
+const TIMES = { 1:'09:00–10:20', 2:'10:30–11:50', 3:'12:00–13:20', 4:'14:20–15:40', 5:'15:50–17:10', 6:'17:20–18:40' };
+const LESSON_TYPES = ["Ma'ruza","Amaliyot","Lab","Seminar"];
+
+// Backend inglizcha status → frontendda ko'rsatish uchun
+const STATUS_CFG = {
+  active:      { icon:'✅', label:'Faol',        c:'var(--green)',  b:'rgba(62,207,142,0.3)' },
+  maintenance: { icon:'🔧', label:'Tamirlash',   c:'var(--accent)', b:'rgba(240,180,41,0.3)' },
+  closed:      { icon:'🔒', label:'Yopiq',        c:'var(--red)',    b:'rgba(255,77,109,0.3)' },
+};
+
+let S = { groups:[], teachers:[], rooms:[], schedules:[], roomSchedules:[] };
+let editingId = null;
+let currentPage = 'schedule';
+let selectedRoomId = null;
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers:{'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({detail: res.statusText}));
+    const detail = err.detail;
+    let msg;
+    if (!detail)                         msg = 'Server xatosi';
+    else if (typeof detail === 'string')  msg = detail;
+    else if (Array.isArray(detail))       msg = detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+    else                                  msg = JSON.stringify(detail);
+    throw new Error(msg);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+async function ping() {
+  try {
+    await fetch('http://127.0.0.1:8000/');
+    document.getElementById('api-dot').className = 'status-dot online';
+    document.getElementById('api-status-text').textContent = 'Backend ulangan';
+  } catch {
+    document.getElementById('api-dot').className = 'status-dot offline';
+    document.getElementById('api-status-text').textContent = 'Backend offline';
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  ping(); setInterval(ping, 15000);
+  try {
+    await Promise.all([loadGroups(), loadTeachers(), loadRooms()]);
+    populateFilters();
+    await loadSchedule();
+  } catch(e) { toast('Backend bilan ulanishda xatolik', 'error'); }
+}
+
+async function loadGroups()   { S.groups   = await api('GET','/groups/');   document.getElementById('badge-groups').textContent   = S.groups.length; }
+async function loadTeachers() { S.teachers = await api('GET','/teachers/'); document.getElementById('badge-teachers').textContent = S.teachers.length; }
+async function loadRooms()    { S.rooms    = await api('GET','/rooms/');    document.getElementById('badge-rooms').textContent    = S.rooms.length; }
+
+function populateFilters() {
+  document.getElementById('filter-group').innerHTML =
+    '<option value="">Barcha guruhlar</option>' +
+    S.groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+  document.getElementById('filter-teacher').innerHTML =
+    "<option value=''>Barcha o'qituvchilar</option>" +
+    S.teachers.map(t=>`<option value="${t.id}">${t.full_name}</option>`).join('');
+}
+
+// ── SCHEDULE ──────────────────────────────────────────────────────────────────
+async function loadSchedule() {
+  const gid = document.getElementById('filter-group').value;
+  const tid = document.getElementById('filter-teacher').value;
+  const wt  = document.getElementById('filter-week').value;
+  const qs  = [gid&&`group_id=${gid}`, tid&&`teacher_id=${tid}`, wt&&`week_type=${wt}`].filter(Boolean);
+  S.schedules = await api('GET', '/schedules/' + (qs.length ? '?'+qs.join('&') : ''));
+  renderTimetable();
+}
+
+function renderTimetable() {
+  const map = {};
+  DAYS.forEach(d => { map[d] = {}; for(let i=1;i<=6;i++) map[d][i] = []; });
+  S.schedules.forEach(s => { if(map[s.day_of_week]?.[s.lesson_number] !== undefined) map[s.day_of_week][s.lesson_number].push(s); });
+
+  let html = '';
+  for (let n=1; n<=6; n++) {
+    html += `<tr><td class="time-cell"><div class="time-num">${n}</div><div class="time-range">${TIMES[n]}</div></td>`;
+    DAYS.forEach(day => {
+      const lessons = map[day][n];
+      html += `<td>`;
+      if (lessons.length) {
+        lessons.forEach(l => {
+          // l.room — nested object from ScheduleDetailResponse (has .status directly)
+          const roomSt    = l.room?.status || 'active';
+          const isWarn    = roomSt === 'maintenance' || roomSt === 'closed';
+          const warnLabel = roomSt === 'maintenance' ? '🔧 TAMIR' : '🔒 YOPIQ';
+          html += `<div class="lesson-card ${typeClass(l.lesson_type)}${isWarn?' room-warn':''}" onclick="openScheduleModal(${l.id})">
+            ${l.week_type ? `<span class="lesson-week">${l.week_type==='odd'?'Toq':'Juft'}</span>` : ''}
+            <div>
+              <div class="lesson-subject">${l.subject}</div>
+              <div class="lesson-meta">
+                👤 ${l.teacher?.full_name||'—'}<br>
+                👥 ${l.group?.name||'—'} &nbsp;🚪 ${l.room?.number||'—'}
+              </div>
+            </div>
+            <div class="lesson-type-badge">${l.lesson_type||''}</div>
+            ${isWarn ? `<span class="room-warn-badge">${warnLabel}</span>` : ''}
+          </div>`;
+        });
+      } else {
+        html += `<button class="add-slot" onclick="openSlot('${day}',${n})">+</button>`;
+      }
+      html += `</td>`;
+    });
+    html += `</tr>`;
+  }
+  document.getElementById('timetable-body').innerHTML = html;
+}
+
+function typeClass(t) {
+  if (!t) return 'type-other';
+  if (t==="Ma'ruza")  return 'type-maruz';
+  if (t==='Amaliyot') return 'type-amal';
+  if (t==='Lab')      return 'type-lab';
+  if (t==='Seminar')  return 'type-sem';
+  return 'type-other';
+}
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(el) el.classList.add('active');
+  currentPage = name;
+  const titles = { schedule:'Dars Jadvali', groups:'Guruhlar', teachers:"O'qituvchilar", rooms:'Xonalar' };
+  document.getElementById('page-title').textContent = titles[name];
+  document.getElementById('schedule-filters').style.display = name==='schedule' ? 'flex' : 'none';
+  document.getElementById('page-actions').style.display     = name!=='schedule' ? 'flex' : 'none';
+  if(name==='groups')   renderGroups();
+  if(name==='teachers') renderTeachers();
+  if(name==='rooms')    renderRooms();
+}
+
+// ── RENDER CARDS ──────────────────────────────────────────────────────────────
+function renderGroups() {
+  const el = document.getElementById('groups-grid');
+  document.getElementById('group-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Jami guruhlar</div><div class="stat-value yellow">${S.groups.length}</div></div>
+    <div class="stat-card"><div class="stat-label">O'qituvchilar</div><div class="stat-value blue">${S.teachers.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Xonalar</div><div class="stat-value purple">${S.rooms.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Darslar</div><div class="stat-value green">${S.schedules.length}</div></div>`;
+  if(!S.groups.length) { el.innerHTML = empty('Guruhlar',"Hozircha guruh yo'q"); return; }
+  el.innerHTML = S.groups.map(g => `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-icon" style="background:rgba(240,180,41,0.1)">◉</div>
+        <div class="card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openEditModal('group',${g.id})">✏</button>
+          <button class="btn btn-danger btn-sm" onclick="openDeleteModal('group',${g.id},'${esc(g.name)}')">✕</button>
+        </div>
+      </div>
+      <div class="card-title">${g.name}</div>
+      <div class="card-sub">${g.specialty||"Mutaxassislik ko'rsatilmagan"}</div>
+      ${g.course ? `<span class="card-tag">${g.course}-kurs</span>` : ''}
+    </div>`).join('');
+}
+
+function renderTeachers() {
+  const el = document.getElementById('teachers-grid');
+  if(!S.teachers.length) { el.innerHTML = empty("O'qituvchilar","Hozircha o'qituvchi yo'q"); return; }
+  el.innerHTML = S.teachers.map(t => `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-icon" style="background:rgba(77,159,255,0.1)">◈</div>
+        <div class="card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openEditModal('teacher',${t.id})">✏</button>
+          <button class="btn btn-danger btn-sm" onclick="openDeleteModal('teacher',${t.id},'${esc(t.full_name)}')">✕</button>
+        </div>
+      </div>
+      <div class="card-title">${t.full_name}</div>
+      <div class="card-sub">${t.subject}</div>
+      ${t.email ? `<span class="card-tag">${t.email}</span>` : ''}
+      ${t.phone ? `<span class="card-tag">${t.phone}</span>` : ''}
+    </div>`).join('');
+}
+
+function renderRooms() {
+  const el = document.getElementById('rooms-grid');
+  if(!S.rooms.length) { el.innerHTML = empty('Xonalar',"Hozircha xona yo'q"); return; }
+
+  const busyCount = {};
+  S.rooms.forEach(r => { busyCount[r.id] = 0; });
+  S.schedules.forEach(s => { const rid = s.room_id ?? s.room?.id; if(rid !== undefined && busyCount[rid] !== undefined) busyCount[rid]++; });
+
+  el.innerHTML = S.rooms.map(r => {
+    const busy = busyCount[r.id] || 0;
+    const pct  = Math.round((busy / 36) * 100);
+    const isSelected = selectedRoomId === r.id;
+    const st  = r.status || 'active';
+    const cfg = STATUS_CFG[st] || { icon:'', label:st, c:'var(--text3)', b:'var(--border)' };
+    return `
+    <div class="card ${isSelected ? 'room-selected' : ''}" onclick="selectRoom(${r.id})" style="${isSelected?'border-color:var(--accent);':''}">
+      <div class="card-head">
+        <div class="card-icon" style="background:rgba(155,109,255,0.1)">◻</div>
+        <div class="card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditModal('room',${r.id})">✏</button>
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();openDeleteModal('room',${r.id},'${esc(r.number)}')">✕</button>
+        </div>
+      </div>
+      <div class="card-title">${r.number}</div>
+      <div class="card-sub">${r.room_type||'Darsxona'}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px">
+        ${r.capacity ? `<span class="card-tag">${r.capacity} o'rin</span>` : ''}
+        ${r.floor    ? `<span class="card-tag">${r.floor}-qavat</span>` : ''}
+        <span class="card-tag" style="color:${cfg.c};border-color:${cfg.b}">${cfg.icon} ${cfg.label}</span>
+        <span class="card-tag" style="color:${busy>0?'var(--red)':'var(--green)'};border-color:${busy>0?'rgba(255,77,109,0.3)':'rgba(62,207,142,0.3)'}">
+          ${busy} band
+        </span>
+      </div>
+      <div style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:4px">
+          <span>Bandlik</span><span>${pct}%</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:3px;height:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${pct>70?'var(--red)':pct>40?'var(--accent)':'var(--green)'};border-radius:3px;transition:width 0.4s"></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:10px;color:var(--accent);text-align:center;opacity:0.7">Jadvalini ko'rish →</div>
+    </div>`;
+  }).join('');
+}
+
+async function selectRoom(roomId) {
+  selectedRoomId = roomId;
+  renderRooms();
+  const room = S.rooms.find(r => r.id === roomId);
+  document.getElementById('room-detail-title').textContent = room.number + ' — ' + (room.room_type||'Xona') + ' jadvali';
+  document.getElementById('room-schedule-section').style.display = 'block';
+  document.getElementById('room-schedule-section').scrollIntoView({ behavior:'smooth', block:'start' });
+  S.roomSchedules = await api('GET', `/schedules/?room_id=${roomId}`);
+  renderRoomSchedule();
+}
+
+function closeRoomDetail() {
+  selectedRoomId = null;
+  S.roomSchedules = [];
+  document.getElementById('room-schedule-section').style.display = 'none';
+  renderRooms();
+}
+
+function renderRoomSchedule() {
+  const wt = document.getElementById('room-week-filter').value;
+  let schedules = S.roomSchedules || [];
+  if (wt) schedules = schedules.filter(s => s.week_type === wt || s.week_type === null);
+
+  const map = {};
+  DAYS.forEach(d => { map[d] = {}; for(let i=1;i<=6;i++) map[d][i] = []; });
+  schedules.forEach(s => { if(map[s.day_of_week]?.[s.lesson_number] !== undefined) map[s.day_of_week][s.lesson_number].push(s); });
+
+  let html = '';
+  for (let n=1; n<=6; n++) {
+    html += `<tr><td class="time-cell"><div class="time-num">${n}</div><div class="time-range">${TIMES[n]}</div></td>`;
+    DAYS.forEach(day => {
+      const lessons = map[day][n];
+      if (lessons.length) {
+        html += `<td>`;
+        lessons.forEach(l => {
+          html += `<div class="lesson-card ${typeClass(l.lesson_type)}" style="cursor:default">
+            ${l.week_type ? `<span class="lesson-week">${l.week_type==='odd'?'Toq':'Juft'}</span>` : ''}
+            <div>
+              <div class="lesson-subject">${l.subject}</div>
+              <div class="lesson-meta">
+                👥 ${l.group?.name||'—'}<br>
+                👤 ${l.teacher?.full_name||'—'}
+              </div>
+            </div>
+            <div class="lesson-type-badge">${l.lesson_type||''}</div>
+          </div>`;
+        });
+        html += `</td>`;
+      } else {
+        html += `<td style="background:rgba(62,207,142,0.03)">
+          <div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(62,207,142,0.4);font-size:11px;font-family:var(--font-head)">BO'SH</div>
+        </td>`;
+      }
+    });
+    html += `</tr>`;
+  }
+  document.getElementById('room-timetable-body').innerHTML = html;
+}
+
+function empty(t, s) { return `<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">${t} topilmadi</div><div class="empty-sub">${s}</div></div>`; }
+function esc(s) { return String(s).replace(/'/g,"\\'"); }
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openModal(title, body, actions) {
+  document.getElementById('modal-title').innerHTML = title;
+  document.getElementById('modal-body').innerHTML  = body;
+  document.getElementById('modal-actions').innerHTML = actions;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); editingId = null; }
+function handleOverlayClick(e) { if(e.target===document.getElementById('modal-overlay')) closeModal(); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+function openAddModal() {
+  editingId = null;
+  if(currentPage==='groups')   openGroupModal();
+  if(currentPage==='teachers') openTeacherModal();
+  if(currentPage==='rooms')    openRoomModal();
+}
+
+// ── GROUP ─────────────────────────────────────────────────────────────────────
+function openGroupModal(d={}) {
+  openModal('◉ &nbsp;Guruh ' + (editingId?'tahrirlash':"qo'shish"),
+    `<div class="form-group"><label class="form-label">Guruh nomi *</label>
+      <input class="form-control" id="f-name" placeholder="CS-101" value="${d.name||''}"></div>
+    <div class="form-group"><label class="form-label">Mutaxassislik</label>
+      <input class="form-control" id="f-spec" placeholder="Informatika" value="${d.specialty||''}"></div>
+    <div class="form-group"><label class="form-label">Kurs</label>
+      <select class="form-control" id="f-course">
+        <option value="">—</option>
+        ${[1,2,3,4,5,6].map(c=>`<option value="${c}" ${d.course==c?'selected':''}>${c}-kurs</option>`).join('')}
+      </select></div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Bekor</button>
+     <button class="btn btn-primary" onclick="saveGroup()">Saqlash</button>`
+  );
+}
+async function saveGroup() {
+  const body = {
+    name:      document.getElementById('f-name').value.trim(),
+    specialty: document.getElementById('f-spec').value.trim() || null,
+    course:    parseInt(document.getElementById('f-course').value) || null
+  };
+  if(!body.name) return toast("Guruh nomini kiriting",'error');
+  try {
+    if(editingId) await api('PATCH',`/groups/${editingId}`,body);
+    else          await api('POST','/groups/',body);
+    toast(editingId?'Yangilandi':"Qo'shildi",'success');
+    closeModal(); await loadGroups(); populateFilters(); renderGroups();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ── TEACHER ───────────────────────────────────────────────────────────────────
+function openTeacherModal(d={}) {
+  openModal("◈ &nbsp;O'qituvchi " + (editingId?'tahrirlash':"qo'shish"),
+    `<div class="form-group"><label class="form-label">To'liq ismi *</label>
+      <input class="form-control" id="f-name" placeholder="Karimov Alisher" value="${d.full_name||''}"></div>
+    <div class="form-group"><label class="form-label">Fan *</label>
+      <input class="form-control" id="f-sub" placeholder="Matematika" value="${d.subject||''}"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Telefon</label>
+        <input class="form-control" id="f-phone" placeholder="+998901234567" value="${d.phone||''}"></div>
+      <div class="form-group"><label class="form-label">Email</label>
+        <input class="form-control" id="f-email" type="email" placeholder="a@univer.uz" value="${d.email||''}"></div>
+    </div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Bekor</button>
+     <button class="btn btn-primary" onclick="saveTeacher()">Saqlash</button>`
+  );
+}
+async function saveTeacher() {
+  const body = {
+    full_name: document.getElementById('f-name').value.trim(),
+    subject:   document.getElementById('f-sub').value.trim(),
+    phone:     document.getElementById('f-phone').value.trim() || null,
+    email:     document.getElementById('f-email').value.trim() || null
+  };
+  if(!body.full_name||!body.subject) return toast("Majburiy maydonlarni to'ldiring",'error');
+  try {
+    if(editingId) await api('PATCH',`/teachers/${editingId}`,body);
+    else          await api('POST','/teachers/',body);
+    toast('Saqlandi','success'); closeModal(); await loadTeachers(); populateFilters(); renderTeachers();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ── ROOM ──────────────────────────────────────────────────────────────────────
+function openRoomModal(d={}) {
+  const curStatus = d.status || 'active';
+  openModal('◻ &nbsp;Xona ' + (editingId?'tahrirlash':"qo'shish"),
+    `<div class="form-row">
+      <div class="form-group"><label class="form-label">Xona raqami *</label>
+        <input class="form-control" id="f-num" placeholder="301-A" value="${d.number||''}"></div>
+      <div class="form-group"><label class="form-label">Sig'imi</label>
+        <input class="form-control" id="f-cap" type="number" placeholder="60" value="${d.capacity||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Turi</label>
+        <select class="form-control" id="f-type">
+          <option value="">—</option>
+          ${['Darsxona','Lab','Auditoriya','Seminar xona'].map(t=>`<option ${d.room_type===t?'selected':''}>${t}</option>`).join('')}
+        </select></div>
+      <div class="form-group"><label class="form-label">Qavat</label>
+        <input class="form-control" id="f-floor" type="number" placeholder="3" value="${d.floor||''}"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Holat</label>
+      <select class="form-control" id="f-status">
+        <option value="active"      ${curStatus==='active'      ?'selected':''}>✅ Faol</option>
+        <option value="maintenance" ${curStatus==='maintenance' ?'selected':''}>🔧 Tamirlash</option>
+        <option value="closed"      ${curStatus==='closed'      ?'selected':''}>🔒 Yopiq</option>
+      </select></div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Bekor</button>
+     <button class="btn btn-primary" onclick="saveRoom()">Saqlash</button>`
+  );
+}
+
+async function saveRoom() {
+  const number    = document.getElementById('f-num').value.trim();
+  const capacity  = parseInt(document.getElementById('f-cap').value) || null;
+  const room_type = document.getElementById('f-type').value || null;
+  const floor     = parseInt(document.getElementById('f-floor').value) || null;
+  const newStatus = document.getElementById('f-status').value;
+
+  if (!number) return toast("Xona raqamini kiriting", 'error');
+
+  // Tamir yoki yopiq ga o'tayotgan bo'lsa va darslar mavjud bo'lsa — ogohlantir
+  if (editingId && (newStatus === 'maintenance' || newStatus === 'closed')) {
+    const oldRoom = S.rooms.find(r => r.id === editingId);
+    if (oldRoom && oldRoom.status !== newStatus) {
+      try {
+        const roomSchedules = await api('GET', `/schedules/?room_id=${editingId}`);
+        if (roomSchedules.length > 0) {
+          const label = newStatus === 'maintenance' ? '🔧 Tamirlash' : '🔒 Yopish';
+          const ok = await showStatusWarning(oldRoom.number, roomSchedules.length, label);
+          if (!ok) return;
+        }
+      } catch(e) { /* ignore, continue */ }
+    }
+  }
+
+  const body = { number, capacity, room_type, floor, status: newStatus };
+  try {
+    if (editingId) await api('PATCH', `/rooms/${editingId}`, body);
+    else           await api('POST',  '/rooms/', body);
+    toast('Saqlandi', 'success');
+    closeModal();
+    await loadRooms();
+    renderRooms();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function showStatusWarning(roomNumber, count, label) {
+  return new Promise(resolve => {
+    const title   = document.getElementById('modal-title');
+    const body    = document.getElementById('modal-body');
+    const actions = document.getElementById('modal-actions');
+
+    const savedTitle   = title.innerHTML;
+    const savedBody    = body.innerHTML;
+    const savedActions = actions.innerHTML;
+
+    title.innerHTML = '⚠️ &nbsp;Diqqat!';
+    body.innerHTML = `
+      <div style="background:rgba(240,180,41,0.08);border:1px solid rgba(240,180,41,0.35);border-radius:9px;padding:15px 17px;font-size:13px;line-height:1.75;color:var(--text)">
+        <strong style="color:var(--accent)">${roomNumber}</strong> xonasida
+        <strong style="color:var(--accent)">${count} ta dars</strong> rejalashtirilgan.<br>
+        ${label} rejimiga o'tkazilsa, darslar <span style="color:var(--red)">avtomatik boshqa xonaga ko'chirilmaydi</span>.<br><br>
+        <span style="color:var(--text2)">Davom etishdan oldin darslarni boshqa xonaga o'tkazishni unutmang.</span>
+      </div>`;
+    actions.innerHTML = `
+      <button class="btn btn-ghost" id="warn-cancel">Bekor qilish</button>
+      <button class="btn btn-primary" id="warn-confirm">${label} rejimiga o'tkazish</button>`;
+
+    document.getElementById('warn-cancel').onclick  = () => { title.innerHTML=savedTitle; body.innerHTML=savedBody; actions.innerHTML=savedActions; resolve(false); };
+    document.getElementById('warn-confirm').onclick = () => { title.innerHTML=savedTitle; body.innerHTML=savedBody; actions.innerHTML=savedActions; resolve(true); };
+  });
+}
+
+// ── SCHEDULE MODAL ────────────────────────────────────────────────────────────
+function openScheduleModal(id) {
+  editingId = id;
+  const s = id ? S.schedules.find(x=>x.id===id) : null;
+  openModal('▦ &nbsp;Dars ' + (id?'tahrirlash':"qo'shish"),
+    `<div class="form-group"><label class="form-label">Fan nomi *</label>
+      <input class="form-control" id="f-subj" placeholder="Fizika" value="${s?.subject||''}"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Guruh *</label>
+        <select class="form-control" id="f-group">
+          <option value="">Tanlang</option>
+          ${S.groups.map(g=>`<option value="${g.id}" ${s?.group_id==g.id?'selected':''}>${g.name}</option>`).join('')}
+        </select></div>
+      <div class="form-group"><label class="form-label">O'qituvchi *</label>
+        <select class="form-control" id="f-teacher">
+          <option value="">Tanlang</option>
+          ${S.teachers.map(t=>`<option value="${t.id}" ${s?.teacher_id==t.id?'selected':''}>${t.full_name}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Xona *</label>
+        <select class="form-control" id="f-room">
+          <option value="">Tanlang</option>
+          ${S.rooms.map(r=>{
+            const st = r.status||'active';
+            const stLabel = st==='maintenance'?' 🔧':st==='closed'?' 🔒':'';
+            const disabled = (st==='maintenance'||st==='closed') ? 'disabled style="color:var(--text3)"' : '';
+            return `<option value="${r.id}" ${s?.room_id==r.id?'selected':''} ${disabled}>${r.number}${stLabel}</option>`;
+          }).join('')}
+        </select></div>
+      <div class="form-group"><label class="form-label">Dars turi</label>
+        <select class="form-control" id="f-ltype">
+          <option value="">—</option>
+          ${LESSON_TYPES.map(t=>`<option ${s?.lesson_type===t?'selected':''}>${t}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Kun *</label>
+        <select class="form-control" id="f-day">
+          ${DAYS.map(d=>`<option ${s?.day_of_week===d?'selected':''}>${d}</option>`).join('')}
+        </select></div>
+      <div class="form-group"><label class="form-label">Dars raqami *</label>
+        <select class="form-control" id="f-lnum">
+          ${Object.entries(TIMES).map(([k,v])=>`<option value="${k}" ${s?.lesson_number==k?'selected':''}>${k} — ${v}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Hafta turi</label>
+      <select class="form-control" id="f-week">
+        <option value=""    ${!s?.week_type         ?'selected':''}>Har hafta</option>
+        <option value="odd" ${s?.week_type==='odd'  ?'selected':''}>Toq hafta</option>
+        <option value="even"${s?.week_type==='even' ?'selected':''}>Juft hafta</option>
+      </select></div>`,
+    `${id?`<button class="btn btn-danger" onclick="openDeleteModal('schedule',${id},'${esc(s?.subject||'')}')">O'chirish</button>`:''}
+     <button class="btn btn-ghost" onclick="closeModal()">Bekor</button>
+     <button class="btn btn-primary" onclick="saveSchedule()">Saqlash</button>`
+  );
+}
+
+function openScheduleModalWithGroup() {
+  openScheduleModal(null);
+  setTimeout(() => {
+    const gid = document.getElementById("filter-group").value;
+    if (gid) document.getElementById("f-group").value = gid;
+  }, 30);
+}
+
+function openSlot(day, n) {
+  editingId = null;
+  openScheduleModal(null);
+  setTimeout(() => {
+    document.getElementById('f-day').value = day;
+    const gid = document.getElementById('filter-group').value;
+    if (gid) document.getElementById('f-group').value = gid;
+    document.getElementById('f-lnum').value = n;
+  }, 30);
+}
+
+async function saveSchedule() {
+  const body = {
+    subject:       document.getElementById('f-subj').value.trim(),
+    group_id:      parseInt(document.getElementById('f-group').value),
+    teacher_id:    parseInt(document.getElementById('f-teacher').value),
+    room_id:       parseInt(document.getElementById('f-room').value),
+    day_of_week:   document.getElementById('f-day').value,
+    lesson_number: parseInt(document.getElementById('f-lnum').value),
+    lesson_type:   document.getElementById('f-ltype').value || null,
+    week_type:     document.getElementById('f-week').value  || null,
+  };
+  if(!body.subject||!body.group_id||!body.teacher_id||!body.room_id)
+    return toast("Majburiy maydonlarni to'ldiring",'error');
+
+  // Tanlangan xona holati tekshiruvi
+  const chosenRoom = S.rooms.find(r => r.id === body.room_id);
+  if (chosenRoom && chosenRoom.status === 'maintenance') {
+    return toast(`${chosenRoom.number} xonasi hozir tamirlashda — boshqa xona tanlang`, 'error');
+  }
+  if (chosenRoom && chosenRoom.status === 'closed') {
+    return toast(`${chosenRoom.number} xonasi yopiq — boshqa xona tanlang`, 'error');
+  }
+
+  try {
+    if(editingId) await api('PATCH',`/schedules/${editingId}`,body);
+    else          await api('POST','/schedules/',body);
+    toast('Saqlandi','success'); closeModal(); await loadSchedule();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ── EDIT ──────────────────────────────────────────────────────────────────────
+async function openEditModal(type, id) {
+  editingId = id;
+  const item = S[type+'s'].find(x=>x.id===id);
+  if(!item) return;
+  if(type==='group')   openGroupModal(item);
+  if(type==='teacher') openTeacherModal(item);
+  if(type==='room')    openRoomModal(item);
+}
+
+// ── DELETE ────────────────────────────────────────────────────────────────────
+function openDeleteModal(type, id, name) {
+  const labels = { group:'Guruh', teacher:"O'qituvchi", room:'Xona', schedule:'Dars' };
+  openModal("O'chirish",
+    `<div class="delete-confirm"><strong>${labels[type]}</strong> "<strong>${name}</strong>" o'chiriladi. Bu amalni qaytarib bo'lmaydi.</div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Bekor</button>
+     <button class="btn btn-danger" onclick="confirmDelete('${type}',${id})">Ha, o'chirish</button>`
+  );
+}
+
+async function confirmDelete(type, id) {
+  const paths = { group:'/groups/', teacher:'/teachers/', room:'/rooms/', schedule:'/schedules/' };
+  try {
+    await api('DELETE', paths[type]+id);
+    toast("O'chirildi",'success'); closeModal();
+    if(type==='group')    { await loadGroups();   populateFilters(); renderGroups(); }
+    if(type==='teacher')  { await loadTeachers(); populateFilters(); renderTeachers(); }
+    if(type==='room')     { await loadRooms();    renderRooms(); }
+    if(type==='schedule') {
+      await loadSchedule();
+      if(selectedRoomId) {
+        S.roomSchedules = await api('GET', `/schedules/?room_id=${selectedRoomId}`);
+        renderRoomSchedule(); renderRooms();
+      }
+    }
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function toast(msg, type='info') {
+  const icons = { success:'✓', error:'✕', info:'·' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]}</span> ${msg}`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+init();
+</script>
+</body>
+</html>
