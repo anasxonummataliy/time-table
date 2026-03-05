@@ -4,14 +4,6 @@ Universitetlar uchun dars jadvali boshqaruv tizimi. FastAPI backend + vanilla HT
 
 ---
 
-## 🖥️ Preview
-
-![Jadval ko'rinishi](https://i.imgur.com/placeholder.png)
-
-> **Asosiy sahifa** — haftalik dars jadvali, filtr va tezkor qo'shish imkoniyati bilan.
-
----
-
 ## ✨ Imkoniyatlar
 
 - **Dars jadvali** — haftalik ko'rinish, toq/juft hafta filtri
@@ -202,3 +194,4 @@ Jadval qo'shishda quyidagilar tekshiriladi:
 ## 📝 Litsenziya
 
 MIT
+
