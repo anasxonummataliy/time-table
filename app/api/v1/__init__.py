@@ -1,9 +1,9 @@
 from fastapi import APIRouter
 
-from app.api.group import router as group_router
-from app.api.teacher import router as teacher_router
-from app.api.room import router as room_router
-from app.api.schedule import router as schedule_router
+from app.api.v1.group import router as group_router
+from app.api.v1.teacher import router as teacher_router
+from app.api.v1.room import router as room_router
+from app.api.v1.schedule import router as schedule_router
 
 routers = APIRouter(prefix="/api")
 
